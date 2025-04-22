@@ -2,7 +2,9 @@ package calendario.agendamentos.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -10,8 +12,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import calendario.agendamentos.Usuario.UsuarioService;
 import calendario.agendamentos.seguranca.CustomAuthenticationProvider;
 
 
@@ -20,13 +24,26 @@ import calendario.agendamentos.seguranca.CustomAuthenticationProvider;
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+	
+	@Bean
+    public AuthenticationManager authenticationManager(HttpSecurity http, UserDetailsService userDetailsService) throws Exception {
+        return http.getSharedObject(AuthenticationManagerBuilder.class)
+                .userDetailsService(userDetailsService)  // Custom UserDetailsService
+                .passwordEncoder(passwordEncoder())       // Custom PasswordEncoder
+                .and()
+                .build();
+    }
+	
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider customAuthenticationProvider) throws Exception {
-        http.authenticationProvider(customAuthenticationProvider)
+    	http.cors() // Enable CORS for Spring Security
+        .and()
+        .csrf().disable().authenticationProvider(customAuthenticationProvider)
         .authorizeRequests(authorizeRequests ->
                 authorizeRequests
                     .antMatchers("/login").permitAll()
+                    .antMatchers("/api/auth/login").permitAll()
                     .antMatchers("/administracao/**").authenticated()
                     .anyRequest().permitAll()
             )
@@ -45,8 +62,7 @@ public class SecurityConfig {
             .deleteCookies("JSESSIONID")
             .permitAll()
     )
-            .authenticationProvider(customAuthenticationProvider); 
-
+            .authenticationProvider(customAuthenticationProvider);
         return http.build();
     }
 
@@ -59,5 +75,6 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+    
 
 }
